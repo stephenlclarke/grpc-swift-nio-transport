@@ -4,6 +4,7 @@ permissions:
   contents: read
 
 on:
+  workflow_dispatch:
   workflow_call:
 
 jobs:
@@ -16,7 +17,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Mark the workspace as safe
-        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
       - name: Run license check
         run: |
           ./dev/license-check.sh
@@ -32,7 +33,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Mark the workspace as safe
-        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
       - name: Run soundness checks
         run: |
           ./dev/check-generated-code.sh
