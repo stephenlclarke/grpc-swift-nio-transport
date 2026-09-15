@@ -4,7 +4,11 @@ xcuserdata
 DerivedData/
 .build
 .swiftpm
+.scannerwork
 build
+/coverage.lcov
+/coverage.xml
+__pycache__/
 /protoc-gen-swift
 /protoc-gen-grpc-swift-2
 third_party/**
