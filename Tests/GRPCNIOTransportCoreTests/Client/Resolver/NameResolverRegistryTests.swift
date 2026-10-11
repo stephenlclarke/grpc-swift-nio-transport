@@ -280,6 +280,42 @@ final class NameResolverRegistryTests: XCTestCase {
     }
   }
 
+  func testUDSResolverDefaultAuthorityDoesNotDependOnSocketPath() async throws {
+    for path in ["/foo", "/tmp/socket with spaces.sock", "/tmp/socket%23.sock", "relative.sock"] {
+      let target = ResolvableTargets.UnixDomainSocket.unixDomainSocket(path: path)
+      XCTAssertNil(target.authority)
+      let resolver = try XCTUnwrap(NameResolverRegistry.defaults.makeResolver(for: target))
+      XCTAssertEqual(resolver.authority, "localhost")
+      XCTAssertEqual(resolver.updateMode, .pull)
+
+      // Resolving repeatedly must preserve the real socket address, not replace it with
+      // the HTTP/2 authority or make it dependent on the socket path's encoding.
+      var iterator = resolver.names.makeAsyncIterator()
+      for _ in 0 ..< 2 {
+        let result = try await XCTUnwrapAsync { try await iterator.next() }
+        XCTAssertEqual(result.endpoints, [Endpoint(.unixDomainSocket(path: path))])
+        XCTAssertNil(result.serviceConfig)
+      }
+    }
+  }
+
+  func testUDSResolverPreservesExplicitAuthority() async throws {
+    for authority in ["build.example:443", "[::1]:8443", "localhost", ""] {
+      let target = ResolvableTargets.UnixDomainSocket.unixDomainSocket(
+        path: "/tmp/build.sock",
+        authority: authority
+      )
+      let resolver = NameResolvers.UnixDomainSocket().resolver(for: target)
+      XCTAssertEqual(resolver.authority, authority)
+      XCTAssertEqual(resolver.updateMode, .pull)
+
+      var iterator = resolver.names.makeAsyncIterator()
+      let result = try await XCTUnwrapAsync { try await iterator.next() }
+      XCTAssertEqual(result.endpoints, [Endpoint(.unixDomainSocket(path: "/tmp/build.sock"))])
+      XCTAssertNil(result.serviceConfig)
+    }
+  }
+
   func testVSOCKResolver() async throws {
     let factory = NameResolvers.VirtualSocket()
     let resolver = factory.resolver(for: .vsock(contextID: .any, port: .any))

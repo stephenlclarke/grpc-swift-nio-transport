@@ -193,21 +193,21 @@ extension HTTP2ClientTransport {
           case .none:
             ()
           case .failQueuedStreams(let continuations):
-            for continuation in continuations {
-              continuation.resume(
-                throwing: RPCError(code: .unavailable, message: "The channel was closed")
-              )
-            }
+            Self.failQueuedStreams(continuations)
           }
 
-        case .shutDown:
-          try await self.channel.close()
+        case .shutDown(let continuations):
+          Self.failQueuedStreams(continuations)
+          // Raw channel closure does not finish the async writer's scoped lifetime.
+          try? await connection.executeThenClose { _, _ in }
+          _ = self.state.withLock { $0.connectionClosed() }
         }
       } catch {
         switch self.state.withLock({ $0.channelConfigured(multiplexer: nil) }) {
         case .continue:
           ()
-        case .shutDown:
+        case .shutDown(let continuations):
+          Self.failQueuedStreams(continuations)
           try? await channel.close()
         }
         // Throw the original error.
@@ -218,7 +218,20 @@ extension HTTP2ClientTransport {
     /// Begins graceful shutdown of the underlying channel.
     public func beginGracefulShutdown() {
       switch self.state.withLock({ $0.beginGracefulShutdown() }) {
-      case .emitGracefulShutdownEvent:
+      case .closeChannel(let continuations):
+        Self.failQueuedStreams(continuations)
+        // No connect task owns the eagerly configured channel yet.
+        Task {
+          if let preConfigured = self.preConfigured {
+            try? await preConfigured.connection.executeThenClose { _, _ in }
+          } else {
+            self.channel.close(promise: nil)
+          }
+        }
+      case .failQueuedStreams(let continuations):
+        Self.failQueuedStreams(continuations)
+      case .emitGracefulShutdownEvent(let continuations):
+        Self.failQueuedStreams(continuations)
         // Fire an event into the channel. At this point it will have been configured for gRPC
         // and an appropriate channel handler will consume it to start the graceful shutdown
         // flow.
@@ -226,6 +239,27 @@ extension HTTP2ClientTransport {
         self.channel.triggerUserOutboundEvent(event, promise: nil)
       case .none:
         ()
+      }
+    }
+
+    /// Begins graceful shutdown and waits for the underlying channel to close.
+    ///
+    /// This also disposes of a configured channel when `connect()` has not been called. If a
+    /// connection task is running, callers should await it separately after closing.
+    public func close() async throws {
+      self.beginGracefulShutdown()
+      try await self.channel.closeFuture.get()
+    }
+
+    private static func failQueuedStreams(
+      _ continuations: [CheckedContinuation<
+        NIOHTTP2Handler.AsyncStreamMultiplexer<Void>, any Error
+      >]
+    ) {
+      for continuation in continuations {
+        continuation.resume(
+          throwing: RPCError(code: .unavailable, message: "The channel was closed")
+        )
       }
     }
 

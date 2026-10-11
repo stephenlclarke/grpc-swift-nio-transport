@@ -28,7 +28,7 @@ extension ResolvableTargets {
 
     /// The authority of the service.
     ///
-    /// If unset then the path of the address will be used.
+    /// If unset then `localhost` will be used.
     public var authority: String?
 
     /// Creates a Unix Domain Socket target.
@@ -45,7 +45,7 @@ extension ResolvableTarget where Self == ResolvableTargets.UnixDomainSocket {
   ///
   /// - Parameters:
   ///   - path: The path of the socket.
-  ///   - authority: The service authority.
+  ///   - authority: The service authority. Defaults to `localhost` when omitted.
   public static func unixDomainSocket(
     path: String,
     authority: String? = nil
@@ -80,7 +80,7 @@ extension NameResolvers {
       return NameResolver(
         names: .constant(resolutionResult),
         updateMode: .pull,
-        authority: target.authority ?? target.address.path
+        authority: target.authority ?? "localhost"
       )
     }
   }

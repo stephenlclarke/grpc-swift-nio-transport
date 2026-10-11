@@ -1768,7 +1768,7 @@ final class HTTP2TransportTests: XCTestCase {
     try await self.testAuthority(serverAddress: .unixDomainSocket(path: path)) { address in
       return .unixDomainSocket(path: path)
     } expectedAuthority: { _ in
-      return path
+      return "localhost"
     }
   }
 
