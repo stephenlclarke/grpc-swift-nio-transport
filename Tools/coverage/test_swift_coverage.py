@@ -120,7 +120,9 @@ class CoverageTests(unittest.TestCase):
             report = root / "coverage.lcov"
             for count in (18446744073709551615, 18446744073709551613, -1):
                 with self.subTest(count=count):
-                    report.write_text(f"SF:Sources/API.swift\nDA:152,{count}\nend_of_record\n")
+                    report.write_text(
+                        f"SF:Sources/API.swift\nDA:152,{count}\nend_of_record\n"
+                    )
                     with self.assertRaisesRegex(ValueError, "Invalid LCOV line count"):
                         coverage.execution_lines(report, root, ())
 
@@ -131,7 +133,9 @@ class CoverageTests(unittest.TestCase):
             report = root / "coverage.lcov"
             for number in (0, -1):
                 with self.subTest(number=number):
-                    report.write_text(f"SF:Sources/API.swift\nDA:{number},1\nend_of_record\n")
+                    report.write_text(
+                        f"SF:Sources/API.swift\nDA:{number},1\nend_of_record\n"
+                    )
                     with self.assertRaisesRegex(ValueError, "Invalid LCOV line count"):
                         coverage.execution_lines(report, root, ())
 
