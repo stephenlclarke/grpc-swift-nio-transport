@@ -113,6 +113,28 @@ class CoverageTests(unittest.TestCase):
             self.assertIn('lineNumber="1" covered="true"', text)
             self.assertIn('lineNumber="2" covered="false"', text)
 
+    def test_execution_lines_rejects_wrapped_instrumentation_counters(self) -> None:
+        """Observed uint64 underflows must never become covered source lines."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "coverage.lcov"
+            for count in (18446744073709551615, 18446744073709551613, -1):
+                with self.subTest(count=count):
+                    report.write_text(f"SF:Sources/API.swift\nDA:152,{count}\nend_of_record\n")
+                    with self.assertRaisesRegex(ValueError, "Invalid LCOV line count"):
+                        coverage.execution_lines(report, root, ())
+
+    def test_execution_lines_rejects_nonpositive_source_lines(self) -> None:
+        """Only actual source-line identities can enter the denominator."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "coverage.lcov"
+            for number in (0, -1):
+                with self.subTest(number=number):
+                    report.write_text(f"SF:Sources/API.swift\nDA:{number},1\nend_of_record\n")
+                    with self.assertRaisesRegex(ValueError, "Invalid LCOV line count"):
+                        coverage.execution_lines(report, root, ())
+
 
 if __name__ == "__main__":
     unittest.main()

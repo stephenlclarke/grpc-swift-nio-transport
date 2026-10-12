@@ -45,3 +45,9 @@ required.
 
 - Tracks the repository-local issue document: [ISSUE-quality-add-sonarcloud.md](ISSUE-quality-add-sonarcloud.md)
 - Pull request: [#3](https://github.com/stephenlclarke/grpc-swift-nio-transport/pull/3)
+
+## Current-revision coverage correction
+
+The exact `8b9f95e6` package run passes 542 cases and records one existing Vsock applicability skip, but its six wrapped LLVM line counters invalidate the coverage result. No Sonar scan uses that report. The original receipt undercounts the test total; a separate source/log-bound disposition derives both complete XCTest and Swift Testing summaries without repeating execution. The raw failure evidence remains intact.
+
+The maintained coverage target now requests atomic Swift/Clang counters and removes stale XML before execution. Conversion rejects negative/wrapped counters and nonpositive source lines. The observed uint64 underflows and invalid line identities fail the old converter; all six offline regression tests pass after correction. Fresh native instrumented qualification and exact-head Sonar analysis remain pending. The existing GitHub matrix cancellations and required review remain visible.

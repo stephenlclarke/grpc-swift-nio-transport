@@ -15,7 +15,10 @@ coverage-tools-test:
 	$(PYTHON) -m unittest discover Tools/coverage
 
 coverage: coverage-tools-test
-	$(SWIFT) test --enable-code-coverage
+	rm -f coverage.xml
+	$(SWIFT) test --enable-code-coverage \
+		-Xswiftc -Xllvm -Xswiftc -instrprof-atomic-counter-update-all \
+		-Xcc -fprofile-update=atomic
 	@coverage_report="$$($(SWIFT) test --show-codecov-path)"; \
 		test -s "$$coverage_report"; \
 		profile="$${coverage_report%/*}/default.profdata"; \

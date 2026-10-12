@@ -69,6 +69,8 @@ def execution_lines(
             number_text, count_text, *_ = line[3:].split(",")
             number = int(number_text)
             count = int(count_text)
+            if number <= 0 or not 0 <= count <= 2**63 - 1:
+                raise ValueError(f"Invalid LCOV line count: {current}:{number}={count}")
             files[current][number] = max(files[current].get(number, 0), count)
         elif line == "end_of_record":
             current = None

@@ -30,7 +30,7 @@ Unix domain socket targets use `localhost` as their default HTTP/2 authority; an
 
 Wrapped-channel clients can call `close()` to begin graceful shutdown and wait for socket closure, including before `connect()` starts. Shutdown disposes the configured async channel and resumes requests queued before the server SETTINGS frame with `unavailable`; configuration failures also release queued requests. Callers with a running connection task should await that task after closing. See the [connection lifetime handoff](docs/upstream/PR-wrapped-channel-lifetime.md).
 
-`make coverage` runs the package tests with instrumentation and produces LCOV plus SonarQube generic coverage reports. `make sonar-scan` submits the reports with the exact checked-out commit as the project version; the hosted SonarQube workflow performs the same analysis for pull requests and `main`.
+`make coverage` runs the package tests with atomic instrumentation counters and produces LCOV plus SonarQube generic coverage reports. Invalid or wrapped counters fail conversion, and the target removes stale XML before testing so a failed run cannot reuse an older report. `make sonar-scan` submits the reports with the exact checked-out commit as the project version; the SonarQube workflow performs the same analysis for pull requests and `main`.
 
 - 📚 **Documentation** is available on the [Swift Package Index][spi-grpc-swift-nio-transport].
 - 🎓 **Tutorials** are available in the documentation for `grpc/grpc-swift-2` on
