@@ -107,7 +107,7 @@ extension HTTP2ClientTransport.WrappedChannel.State {
 
   enum ChannelConfiguredAction {
     case `continue`
-    case shutDown
+    case shutDown([RequestQueue<NIOHTTP2Handler.AsyncStreamMultiplexer<Void>>.Continuation])
   }
 
   mutating func channelConfigured(
@@ -116,19 +116,19 @@ extension HTTP2ClientTransport.WrappedChannel.State {
     let action: ChannelConfiguredAction
 
     switch consume self {
-    case .configuring(let state):
+    case .configuring(var state):
       if let multiplexer = multiplexer {
         self = .configured(Configured(from: state, multiplexer: multiplexer))
         action = .continue
       } else {
         self = .shutDown
-        action = .shutDown
+        action = .shutDown(state.queue.removeAll())
       }
 
     case .shuttingDown:
       // Either way, close the channel.
       self = .shuttingDown
-      action = .shutDown
+      action = .shutDown([])
 
     case .idle:
       fatalError("Invalid state")
@@ -182,28 +182,34 @@ extension HTTP2ClientTransport.WrappedChannel.State {
 
   enum BeginGracefulShutDownAction {
     case none
-    case emitGracefulShutdownEvent
+    case closeChannel([RequestQueue<NIOHTTP2Handler.AsyncStreamMultiplexer<Void>>.Continuation])
+    case failQueuedStreams(
+      [RequestQueue<NIOHTTP2Handler.AsyncStreamMultiplexer<Void>>.Continuation]
+    )
+    case emitGracefulShutdownEvent(
+      [RequestQueue<NIOHTTP2Handler.AsyncStreamMultiplexer<Void>>.Continuation]
+    )
   }
 
   mutating func beginGracefulShutdown() -> BeginGracefulShutDownAction {
     let action: BeginGracefulShutDownAction
 
     switch consume self {
-    case .idle:
+    case .idle(var state):
       self = .shutDown
-      action = .none
+      action = .closeChannel(state.queue.removeAll())
 
-    case .configuring:
+    case .configuring(var state):
       self = .shuttingDown
-      action = .none
+      action = .failQueuedStreams(state.queue.removeAll())
 
-    case .configured:
+    case .configured(var state):
       self = .shuttingDown
-      action = .emitGracefulShutdownEvent
+      action = .emitGracefulShutdownEvent(state.queue.removeAll())
 
     case .ready:
       self = .shuttingDown
-      action = .emitGracefulShutdownEvent
+      action = .emitGracefulShutdownEvent([])
 
     case .shuttingDown:
       self = .shuttingDown
@@ -246,7 +252,7 @@ extension HTTP2ClientTransport.WrappedChannel.State {
       return .none
 
     case .shuttingDown:
-      self = .shuttingDown
+      self = .shutDown
       return .none
 
     case .shutDown:
