@@ -4,7 +4,11 @@ xcuserdata
 DerivedData/
 .build
 .swiftpm
+.scannerwork
 build
+/coverage.lcov
+/coverage.xml
+__pycache__/
 /protoc-gen-swift
 /protoc-gen-grpc-swift-2
 third_party/**
@@ -23,3 +27,7 @@ dev/codegen-tests/**/generated/*
 Package.resolved
 *.out.*
 /Performance/Benchmarks/.benchmarkBaselines/
+
+# Exact-source local coverage admission.
+coverage.source-revision
+coverage.xml.sha256
