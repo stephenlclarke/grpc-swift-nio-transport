@@ -15,6 +15,9 @@ coverage-tools-test:
 	$(PYTHON) -m unittest discover Tools/coverage
 
 coverage: coverage-tools-test
+	@git diff --quiet HEAD -- || { printf 'coverage requires clean tracked source\n' >&2; exit 2; }
+	@git rev-parse --verify HEAD > coverage.source-revision
+	rm -f coverage.xml.sha256
 	rm -f coverage.xml
 	$(SWIFT) test --enable-code-coverage \
 		-Xswiftc -Xllvm -Xswiftc -instrprof-atomic-counter-update-all \
@@ -42,7 +45,10 @@ coverage: coverage-tools-test
 			--source-root "$(CURDIR)" \
 			--exclude-prefix Sources/CGRPCNIOTransportZlib \
 			--sonar-output coverage.xml \
-			coverage.lcov
+			coverage.lcov; \
+		test "$$(cat coverage.source-revision)" = "$$(git rev-parse --verify HEAD)"; \
+		git diff --quiet HEAD --; \
+		shasum -a 256 coverage.xml > coverage.xml.sha256
 
 sonar: coverage sonar-scan
 
@@ -51,6 +57,14 @@ sonar-scan:
 		printf 'coverage.xml is missing; run make coverage first\n' >&2; \
 		exit 2; \
 	}
+	@test -s coverage.source-revision -a -s coverage.xml.sha256 || { \
+		printf 'coverage provenance is missing; run make coverage first\n' >&2; exit 2; \
+	}
+	@test "$$(cat coverage.source-revision)" = "$$(git rev-parse --verify HEAD)" || { \
+		printf 'coverage belongs to another revision; run make coverage again\n' >&2; exit 2; \
+	}
+	@git diff --quiet HEAD -- || { printf 'scan requires clean tracked source\n' >&2; exit 2; }
+	@shasum -a 256 -c coverage.xml.sha256 >/dev/null
 	@test -n "$${SONAR_TOKEN:-$${SONAR_TOKEN_PERSONAL:-}}" || { \
 		printf 'SONAR_TOKEN or SONAR_TOKEN_PERSONAL is required for sonar-scan\n' >&2; \
 		exit 2; \
@@ -65,11 +79,19 @@ sonar-scan:
 			printf 'SONAR_PROJECT_VERSION must match checked-out HEAD %s\n' "$$head_version" >&2; \
 			exit 2; \
 		fi; \
+		scanner_context=(); \
+		if [[ "$${GITHUB_ACTIONS:-false}" != true ]]; then \
+			branch="$$(git symbolic-ref --quiet --short HEAD)" || { \
+				printf 'local scans require a named branch\n' >&2; exit 2; \
+			}; \
+			scanner_context=("-Dsonar.branch.name=$$branch"); \
+		fi; \
 		SONAR_TOKEN="$${SONAR_TOKEN:-$${SONAR_TOKEN_PERSONAL:-}}" \
 			sonar-scanner \
 			-Dsonar.projectVersion="$$project_version" \
-			-Dsonar.qualitygate.wait="$(SONAR_QUALITYGATE_WAIT)"
+			-Dsonar.qualitygate.wait="$(SONAR_QUALITYGATE_WAIT)" \
+			$${scanner_context[@]+"$${scanner_context[@]}"}
 
 clean:
-	rm -f coverage.lcov coverage.xml
+	rm -f coverage.lcov coverage.xml coverage.source-revision coverage.xml.sha256
 	rm -rf .scannerwork

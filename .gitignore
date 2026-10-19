@@ -27,3 +27,7 @@ dev/codegen-tests/**/generated/*
 Package.resolved
 *.out.*
 /Performance/Benchmarks/.benchmarkBaselines/
+
+# Exact-source local coverage admission.
+coverage.source-revision
+coverage.xml.sha256

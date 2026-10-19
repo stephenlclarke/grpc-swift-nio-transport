@@ -28,6 +28,8 @@ The `stephenlclarke` fork is maintained as a Container-family integration mirror
 
 The synchronized dependency requirements follow upstream: gRPC Swift 2.4.0 or later and SwiftNIO 2.104.0 or later. Consumers retain their own resolved revisions until their next validated dependency update.
 
+`make coverage` records the clean source revision and report checksum. `make sonar-scan` rejects stale or modified coverage and supplies the current branch for local scans; supported GitHub Actions analyses retain automatic pull-request context. Local detached checkouts are rejected. See the [quality refresh handoff](docs/upstream/PR-quality-refresh-20261019.md).
+
 Unix domain socket targets use `localhost` as their default HTTP/2 authority; an explicit target or transport authority remains authoritative. The core target declares its HTTP/1 and TLS dependencies directly for dynamic-framework linkage. Resolver and HTTP/2 client/server regressions verify the default and explicit overrides. See the scoped handoffs for [UDS interoperability](docs/upstream/PR-176.md) and [direct dependencies](docs/upstream/PR-199.md).
 
 Wrapped-channel clients can call `close()` to begin graceful shutdown and wait for socket closure, including before `connect()` starts. Shutdown disposes the configured async channel and resumes requests queued before the server SETTINGS frame with `unavailable`; configuration failures also release queued requests. Callers with a running connection task should await that task after closing. See the [connection lifetime handoff](docs/upstream/PR-wrapped-channel-lifetime.md).
